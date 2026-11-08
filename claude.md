@@ -40,6 +40,19 @@ JUnit 5 — unit testing.
 Mockito — mocking dependencies in unit tests where appropriate.
 Use Java's built-in java.time API, particularly LocalDate and DayOfWeek, for date operations.
 Avoid legacy date APIs such as java.util.Date and Calendar unless absolutely necessary.
+Project setup (confirmed)
+Java 21 (LTS), Spring Boot 4.1.2, generated with Spring Initializr.
+Build with the Maven wrapper (./mvnw); a global Maven install is not required.
+Base package: com.mikeychoi.calendarcalc. Main class: CalendarCalcApplication.
+Spring Boot 4 uses modular starters (e.g. spring-boot-starter-webmvc, spring-boot-h2console, *-test starters).
+Confirmed decisions
+The holiday calendar is not restricted to 2027. Holidays may be added for any year; ?year= is only a filter.
+GET /v1/holidays without a year parameter returns all holidays.
+Exact duplicate holidays (same date AND same name) are rejected with 409 Conflict. Different holidays on the same date are allowed.
+numDays must be between 0 and 100000 inclusive (@Min(0), @Max(100000)). Results outside LocalDate's supported range return 400, not 500.
+PATCH: a missing or null field means "do not change". A blank name ("") is rejected with 400.
+Tests use an in-memory H2 database (src/test/resources) so they never touch ./data/.
+The developer handles all git commits. Claude should not commit.
 4. Architecture and Code Organization
 Use a straightforward layered architecture:
 Client → Controller → Service → Repository → Database
@@ -100,7 +113,7 @@ calendar-calc
 │   ├── ResourceNotFoundException.java
 │   └── GlobalExceptionHandler.java
 │
-└── DateCalculatorApplication.java
+└── CalendarCalcApplication.java
 This is a suggested structure, not a requirement to create every file immediately. Introduce classes as they become necessary.
 5. Database Design
 Use a file-based H2 database so holiday records persist when the application restarts.
@@ -134,7 +147,7 @@ spring.jpa.hibernate.ddl-auto=update
 Keep the local database directory out of version control by adding data/ to .gitignore.
 Do not introduce a separate database server or Docker setup unless there is a specific need.
 6. API Design
-Use the /api/v1 prefix for all endpoints.
+Use the /v1 prefix for all endpoints. Section 10 is the authoritative endpoint list.
 All dates should use ISO 8601 format:
 YYYY-MM-DD
 Example:
@@ -142,7 +155,7 @@ Example:
 Use JSON for request and response bodies.
 A. Date calculations
 Add days
-POST /api/v1/date-calculations/add
+POST /v1/date/add
 Request:
 {
   "startDate": "2026-11-07",
@@ -162,10 +175,10 @@ public enum CalculationType {
     BUSINESS
 }
 Subtract days
-POST /api/v1/date-calculations/subtract
+POST /v1/date/subtract
 Use the same request and response DTO structure as the add endpoint.
 Calculate date difference 
-POST /api/v1/date-calculations/difference
+POST /v1/date/difference
 Request:
 {
   "startDate": "2026-11-07",
@@ -182,13 +195,13 @@ The example assumes there are no holidays in the interval.
 Return both calendar-day and business-day counts. Do not require a calculation type for this endpoint.
 B. Holiday management
 Retrieve holidays
-GET /api/v1/holidays?year=2027
+GET /v1/holidays?year=2027
 Returns all holiday records for the requested year.
 If no holidays exist, return an empty array.
 Retrieve one holiday (optional)
-GET /api/v1/holidays/{id}
+GET /v1/holidays/{id}
 Add a holiday
-POST /api/v1/holidays
+POST /v1/holidays
 Request:
 {
   "date": "2027-12-25",
@@ -197,11 +210,11 @@ Request:
 The server should generate the ID.
 Return 201 Created, the created holiday, and ideally a Location header pointing to the new resource.
 Update a holiday
-PATCH /api/v1/holidays/{id}
+PATCH /v1/holidays/{id}
 Use partial-update semantics. Only supplied fields should change.
 Return the updated holiday.
 Delete a holiday
-DELETE /api/v1/holidays/{id}
+DELETE /v1/holidays/{id}
 Return 204 No Content on success.
 API design conventions
 Use nouns for resource URLs, such as /holidays.
@@ -276,7 +289,7 @@ Use a consistent JSON error response:
   "status": 400,
   "error": "Bad Request",
   "message": "numDays must be greater than or equal to 0",
-  "path": "/api/v1/date-calculations/add"
+  "path": "/v1/date/add"
 }
 Create an ApiError DTO or Java record for this response.
 Implement a global exception handler using @RestControllerAdvice.
@@ -316,141 +329,90 @@ Also test invalid input and exception handling where appropriate.
 Tests should verify behavior, not simply repeat implementation details.
 
 10. API Spec
+All endpoints use the /v1 prefix. All dates use ISO 8601 (YYYY-MM-DD). All bodies are JSON.
 
-Method
-Endpoint
-Description
-Request Body:
-Response Body:
-Exception:
-GET
-/holidays?year={year}
-get all holidays for a year
+Holiday endpoints
 
-
-[  
-   { 
-      id: 1
-      name: “Christmas”,
-      date: “12-25-2027”
-   },
-   {
-      ...
-   }
+GET /v1/holidays?year={year}
+Description: Get all holidays, optionally filtered by year. Omitting year returns all holidays.
+Response: 200 OK
+[
+  { "id": 1, "name": "Christmas", "date": "2027-12-25" },
+  ...
 ]
-Invalid year string
-GET
-/holidays/{id}
-get specific holiday
+Errors: 400 if year is not a valid integer.
 
+GET /v1/holidays/{id}
+Description: Get one holiday.
+Response: 200 OK
+{ "id": 1, "name": "Christmas", "date": "2027-12-25" }
+Errors: 400 if id is not a number. 404 if no holiday has that id.
 
-{  
-   id: 1,
-   name: “Christmas”,
-   date: “12-25-2027”
-}
-Invalid ID
-POST
-/holidays
-add holiday to calendar
-{  
-   name: “Christmas”,
-   date: “12-25-2027”
-}
-{  
-   id: 1,
-   name: “Christmas”,
-   date: “12-25-2027”
-}
-Invalid date structure
-Duplicate holiday
-PATCH
-/holidays/{id}
-update holiday in calendar
-{  
-   name: “Christmas 2”,
-}
-{  
-   id: 1,
-   name: “Christmas 2”,
-   date: “12-25-2027”
-}
-Invalid ID
-Invalid date
-DELETE
-/holidays/{id}
-remove holiday from calendar
+POST /v1/holidays
+Description: Add a holiday to the calendar. The server generates the id.
+Request:
+{ "name": "Christmas", "date": "2027-12-25" }
+Response: 201 Created, with a Location header of /v1/holidays/{id}
+{ "id": 1, "name": "Christmas", "date": "2027-12-25" }
+Errors: 400 if name or date is missing, blank, or the date is malformed. 409 if a holiday with the same date and name already exists.
 
+PATCH /v1/holidays/{id}
+Description: Partially update a holiday. Only supplied fields change.
+Request:
+{ "name": "Christmas 2" }
+Response: 200 OK
+{ "id": 1, "name": "Christmas 2", "date": "2027-12-25" }
+Errors: 400 if the date is malformed or name is blank. 404 if no holiday has that id. 409 if the update would create a duplicate (same date and name).
 
+DELETE /v1/holidays/{id}
+Description: Remove a holiday from the calendar.
+Response: 204 No Content (empty body)
+Errors: 404 if no holiday has that id.
 
+Date calculation endpoints
 
-Invalid ID
-POST
-/date/add
-date add
-{  
-   startDate: “11-7-2026”,
-   numDays: 10,
-   calcType: “CALENDAR”
-}
-{  
-   startDate: “11-7-2026”,
-   endDate: “11-17-2026”,
-   numDays: 10,
-   calcType: “CALENDAR”
-}
-Invalid dates, days, calcType
-POST
-/date/subtract
-date subtract
-{  
-   startDate: “11-17-2026”,
-   numDays: 10,
-   calcType: “CALENDAR”
-}
-{  
-   startDate: “11-17-2026”,
-   endDate: “11-7-2026”,
-   numDays: 10,
-   calcType: “CALENDAR”
-}
+POST /v1/date/add
+Description: Add calendar or business days to a date.
+Request:
+{ "startDate": "2026-11-07", "numDays": 10, "calcType": "CALENDAR" }
+Response: 200 OK
+{ "startDate": "2026-11-07", "resultDate": "2026-11-17", "numDays": 10, "calcType": "CALENDAR" }
+Errors: 400 if startDate is missing or malformed, numDays is missing or outside 0..100000, or calcType is missing or not CALENDAR/BUSINESS.
 
+POST /v1/date/subtract
+Description: Subtract calendar or business days from a date. Same request/response shape as add.
+Request:
+{ "startDate": "2026-11-17", "numDays": 10, "calcType": "CALENDAR" }
+Response: 200 OK
+{ "startDate": "2026-11-17", "resultDate": "2026-11-07", "numDays": 10, "calcType": "CALENDAR" }
+Errors: same as add.
 
-POST
-/date/between
-date difference
-{  
-   startDate: “11-17-2026”,
-   endDate: “11-7-2026”,
-}
-{  
-   startDate: “11-17-2026”,
-   endDate: “11-7-2026”,
-   numDaysCalendar: 10,
-   numDaysBusiness: 7
-}
-
-
-
+POST /v1/date/difference
+Description: Count calendar days and business days in the interval (startDate, endDate].
+Request:
+{ "startDate": "2026-11-07", "endDate": "2026-11-17" }
+Response: 200 OK
+{ "startDate": "2026-11-07", "endDate": "2026-11-17", "calendarDays": 10, "businessDays": 7 }
+Errors: 400 if either date is missing or malformed, or if startDate is after endDate (reversed dates are rejected).
 
 Standardized Error:
-
 {
   "timestamp": "2026-11-07T10:30:00",
   "status": 400,
   "error": "Bad Request",
   "message": "numDays must be greater than or equal to 0",
-  "path": “/date/add"
+  "path": "/v1/date/add"
 }
 
 Assumptions:
-Holiday dates use ISO 8601 (YYYY-MM-DD).
-Multiple holidays may share a date.
+All dates use ISO 8601 (YYYY-MM-DD).
+Multiple holidays may share a date, but exact duplicates (same date and name) are rejected.
 Duplicate dates are counted only once when calculating business days.
 Starting dates are excluded when adding or subtracting days.
 Business days exclude Saturday, Sunday, and configured holidays.
 Difference calculations exclude the starting date and include the ending date.
 Adding or subtracting zero days returns the original date.
+startDate equal to endDate is allowed for difference and returns 0 for both counts.
 
 
 
