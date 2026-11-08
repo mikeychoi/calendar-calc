@@ -18,8 +18,10 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.exc.MismatchedInputException;
 
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -90,6 +92,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleDuplicate(
             DuplicateHolidayException ex, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    /**
+     * A calculation produced a date java.time can't represent (beyond year +/-999,999,999),
+     * e.g. adding days to "+999999999-12-31". Caused by the input, so 400 rather than 500.
+     */
+    @ExceptionHandler(DateTimeException.class)
+    public ResponseEntity<ApiError> handleDateOutOfRange(
+            DateTimeException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "The resulting date is outside the supported date range", request);
     }
 
     /**
@@ -169,9 +181,17 @@ public class GlobalExceptionHandler {
                     break; // the JSON itself is broken, not a particular field
                 }
                 String message = "Invalid value for field '" + field + "'";
-                if (jacksonEx instanceof MismatchedInputException mismatch
-                        && mismatch.getTargetType() == LocalDate.class) {
-                    message += ": dates must use the YYYY-MM-DD format";
+                if (jacksonEx instanceof MismatchedInputException mismatch && mismatch.getTargetType() != null) {
+                    Class<?> target = mismatch.getTargetType();
+                    if (target == LocalDate.class) {
+                        message += ": dates must use the YYYY-MM-DD format";
+                    } else if (target.isEnum()) {
+                        // e.g. "must be one of CALENDAR, BUSINESS" - listed from the enum itself,
+                        // so the message stays correct if values are added later.
+                        message += ": must be one of " + Arrays.stream(target.getEnumConstants())
+                                .map(Object::toString)
+                                .collect(Collectors.joining(", "));
+                    }
                 }
                 return message;
             }
