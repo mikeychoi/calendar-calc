@@ -35,4 +35,14 @@ public class DateCalculationController {
     public DateAddSubtractResponse add(@Valid @RequestBody DateAddSubtractRequest request) {
         return dateCalculationService.add(request);
     }
+
+    /**
+     * POST /v1/date/subtract  -> subtract calendar or business days from a date
+     *
+     * 200 OK with the result date.
+     */
+    @PostMapping("/subtract")
+    public DateAddSubtractResponse subtract(@Valid @RequestBody DateAddSubtractRequest request) {
+        return dateCalculationService.subtract(request);
+    }
 }

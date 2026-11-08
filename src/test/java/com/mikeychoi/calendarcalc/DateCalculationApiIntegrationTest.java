@@ -78,4 +78,38 @@ class DateCalculationApiIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("The resulting date is outside the supported date range"));
     }
+
+    @Test
+    void businessDaySubtractSkipsHolidaysStoredInTheCalendar() throws Exception {
+        // Mon 2027-11-29 - 1 business day = Fri 11-26 with no holidays...
+        postJson("/v1/date/subtract", """
+                { "startDate": "2027-11-29", "numDays": 1, "calcType": "BUSINESS" }
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultDate").value("2027-11-26"));
+
+        // ...but with Thu 11-25 and Fri 11-26 as holidays, it moves back to Wed 11-24.
+        postJson("/v1/holidays", """
+                { "date": "2027-11-25", "name": "Thanksgiving" }
+                """).andExpect(status().isCreated());
+        postJson("/v1/holidays", """
+                { "date": "2027-11-26", "name": "Day after Thanksgiving" }
+                """).andExpect(status().isCreated());
+
+        postJson("/v1/date/subtract", """
+                { "startDate": "2027-11-29", "numDays": 1, "calcType": "BUSINESS" }
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultDate").value("2027-11-24"));
+    }
+
+    @Test
+    void subtractingPastTheSmallestSupportedDateReturns400() throws Exception {
+        // LocalDate.MIN is -999999999-01-01; one day earlier cannot be represented.
+        postJson("/v1/date/subtract", """
+                { "startDate": "-999999999-01-01", "numDays": 1, "calcType": "CALENDAR" }
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("The resulting date is outside the supported date range"));
+    }
 }

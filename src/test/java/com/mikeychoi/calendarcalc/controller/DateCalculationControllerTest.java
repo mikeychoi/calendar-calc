@@ -150,4 +150,53 @@ class DateCalculationControllerTest {
                     .andExpect(jsonPath("$.message").value("The resulting date is outside the supported date range"));
         }
     }
+
+    /** Validation is shared with add (same DTO), so only the routing and one error case are repeated here. */
+    @Nested
+    class Subtract {
+
+        @Test
+        void returnsCalculatedResultFromSubtractNotAdd() throws Exception {
+            when(dateCalculationService.subtract(new DateAddSubtractRequest(LocalDate.of(2026, 11, 17), 10, CALENDAR)))
+                    .thenReturn(new DateAddSubtractResponse(
+                            LocalDate.of(2026, 11, 17), LocalDate.of(2026, 11, 7), 10, CALENDAR));
+
+            postJson("/v1/date/subtract", """
+                    { "startDate": "2026-11-17", "numDays": 10, "calcType": "CALENDAR" }
+                    """)
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.startDate").value("2026-11-17"))
+                    .andExpect(jsonPath("$.resultDate").value("2026-11-07"))
+                    .andExpect(jsonPath("$.numDays").value(10))
+                    .andExpect(jsonPath("$.calcType").value("CALENDAR"));
+
+            verify(dateCalculationService, never()).add(any());
+        }
+
+        @Test
+        void acceptsBusinessCalcType() throws Exception {
+            when(dateCalculationService.subtract(new DateAddSubtractRequest(LocalDate.of(2027, 1, 11), 1, BUSINESS)))
+                    .thenReturn(new DateAddSubtractResponse(
+                            LocalDate.of(2027, 1, 11), LocalDate.of(2027, 1, 8), 1, BUSINESS));
+
+            postJson("/v1/date/subtract", """
+                    { "startDate": "2027-01-11", "numDays": 1, "calcType": "BUSINESS" }
+                    """)
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.resultDate").value("2027-01-08"))
+                    .andExpect(jsonPath("$.calcType").value("BUSINESS"));
+        }
+
+        @Test
+        void negativeNumDaysReturns400WithSubtractPath() throws Exception {
+            postJson("/v1/date/subtract", """
+                    { "startDate": "2026-11-17", "numDays": -1, "calcType": "CALENDAR" }
+                    """)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value("numDays must be greater than or equal to 0"))
+                    .andExpect(jsonPath("$.path").value("/v1/date/subtract"));
+
+            verify(dateCalculationService, never()).subtract(any());
+        }
+    }
 }
