@@ -28,6 +28,8 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- Extra JVM options for tests; empty by default, can be extended with -DargLine=... -->
+		<argLine></argLine>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -74,6 +76,32 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<!--
+				Load Mockito as a Java agent when the test JVM starts, instead of letting
+				Mockito attach itself at runtime ("self-attaching"), which newer JDKs are
+				phasing out. Recommended setup from Mockito's documentation.
+			-->
+			<plugin>
+				<!-- The "properties" goal exposes each dependency's jar path as a property,
+				     e.g. ${org.mockito:mockito-core:jar}. -->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>properties</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<!-- Surefire runs the unit tests; argLine adds JVM options to the test JVM. -->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}</argLine>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
