@@ -2,6 +2,9 @@ package com.mikeychoi.calendarcalc.controller;
 
 import com.mikeychoi.calendarcalc.dto.DateAddSubtractRequest;
 import com.mikeychoi.calendarcalc.dto.DateAddSubtractResponse;
+import com.mikeychoi.calendarcalc.dto.DateDifferenceRequest;
+import com.mikeychoi.calendarcalc.dto.DateDifferenceResponse;
+import com.mikeychoi.calendarcalc.exception.InvalidDateRangeException;
 import com.mikeychoi.calendarcalc.service.DateCalculationService;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -197,6 +200,65 @@ class DateCalculationControllerTest {
                     .andExpect(jsonPath("$.path").value("/v1/date/subtract"));
 
             verify(dateCalculationService, never()).subtract(any());
+        }
+    }
+
+    @Nested
+    class Difference {
+
+        @Test
+        void returnsBothCounts() throws Exception {
+            when(dateCalculationService.difference(
+                    new DateDifferenceRequest(LocalDate.of(2026, 11, 7), LocalDate.of(2026, 11, 17))))
+                    .thenReturn(new DateDifferenceResponse(
+                            LocalDate.of(2026, 11, 7), LocalDate.of(2026, 11, 17), 10, 7));
+
+            postJson("/v1/date/difference", """
+                    { "startDate": "2026-11-07", "endDate": "2026-11-17" }
+                    """)
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.startDate").value("2026-11-07"))
+                    .andExpect(jsonPath("$.endDate").value("2026-11-17"))
+                    .andExpect(jsonPath("$.calendarDays").value(10))
+                    .andExpect(jsonPath("$.businessDays").value(7));
+        }
+
+        @Test
+        void missingDatesReturn400ListingEachProblem() throws Exception {
+            postJson("/v1/date/difference", "{}")
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message")
+                            .value("endDate must not be null; startDate must not be null"))
+                    .andExpect(jsonPath("$.path").value("/v1/date/difference"));
+
+            verify(dateCalculationService, never()).difference(any());
+        }
+
+        @Test
+        void malformedDateReturns400NamingTheField() throws Exception {
+            postJson("/v1/date/difference", """
+                    { "startDate": "2026-11-07", "endDate": "11-17-2026" }
+                    """)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message")
+                            .value("Invalid value for field 'endDate': dates must use the YYYY-MM-DD format"));
+
+            verify(dateCalculationService, never()).difference(any());
+        }
+
+        @Test
+        void invalidDateRangeFromServiceReturns400() throws Exception {
+            when(dateCalculationService.difference(any()))
+                    .thenThrow(new InvalidDateRangeException("startDate must be on or before endDate"));
+
+            postJson("/v1/date/difference", """
+                    { "startDate": "2026-11-17", "endDate": "2026-11-07" }
+                    """)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value(400))
+                    .andExpect(jsonPath("$.error").value("Bad Request"))
+                    .andExpect(jsonPath("$.message").value("startDate must be on or before endDate"))
+                    .andExpect(jsonPath("$.path").value("/v1/date/difference"));
         }
     }
 }

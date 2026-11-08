@@ -2,6 +2,8 @@ package com.mikeychoi.calendarcalc.controller;
 
 import com.mikeychoi.calendarcalc.dto.DateAddSubtractRequest;
 import com.mikeychoi.calendarcalc.dto.DateAddSubtractResponse;
+import com.mikeychoi.calendarcalc.dto.DateDifferenceRequest;
+import com.mikeychoi.calendarcalc.dto.DateDifferenceResponse;
 import com.mikeychoi.calendarcalc.service.DateCalculationService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,5 +46,15 @@ public class DateCalculationController {
     @PostMapping("/subtract")
     public DateAddSubtractResponse subtract(@Valid @RequestBody DateAddSubtractRequest request) {
         return dateCalculationService.subtract(request);
+    }
+
+    /**
+     * POST /v1/date/difference  -> count calendar and business days in (startDate, endDate]
+     *
+     * 200 OK with both counts. The start date is excluded and the end date is included.
+     */
+    @PostMapping("/difference")
+    public DateDifferenceResponse difference(@Valid @RequestBody DateDifferenceRequest request) {
+        return dateCalculationService.difference(request);
     }
 }

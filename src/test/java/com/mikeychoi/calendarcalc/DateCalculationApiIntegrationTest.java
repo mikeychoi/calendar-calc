@@ -112,4 +112,72 @@ class DateCalculationApiIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("The resulting date is outside the supported date range"));
     }
+
+    @Test
+    void differenceMatchesTheSpecExample() throws Exception {
+        postJson("/v1/date/difference", """
+                { "startDate": "2026-11-07", "endDate": "2026-11-17" }
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.calendarDays").value(10))
+                .andExpect(jsonPath("$.businessDays").value(7));
+    }
+
+    @Test
+    void differenceSubtractsHolidaysStoredInTheCalendarFromBusinessDaysOnly() throws Exception {
+        String request = """
+                { "startDate": "2027-11-22", "endDate": "2027-11-29" }
+                """;
+
+        // (Mon 11-22, Mon 11-29]: Tue, Wed, Thu, Fri, Mon = 5 business days
+        postJson("/v1/date/difference", request)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.calendarDays").value(7))
+                .andExpect(jsonPath("$.businessDays").value(5));
+
+        // Thu and Fri become holidays. The second Thursday record shares a date, so it changes nothing.
+        postJson("/v1/holidays", """
+                { "date": "2027-11-25", "name": "Thanksgiving" }
+                """).andExpect(status().isCreated());
+        postJson("/v1/holidays", """
+                { "date": "2027-11-26", "name": "Day after Thanksgiving" }
+                """).andExpect(status().isCreated());
+        postJson("/v1/holidays", """
+                { "date": "2027-11-25", "name": "Company Holiday" }
+                """).andExpect(status().isCreated());
+
+        postJson("/v1/date/difference", request)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.calendarDays").value(7))
+                .andExpect(jsonPath("$.businessDays").value(3));
+    }
+
+    @Test
+    void differenceWithSameStartAndEndDateIsZero() throws Exception {
+        postJson("/v1/date/difference", """
+                { "startDate": "2027-01-08", "endDate": "2027-01-08" }
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.calendarDays").value(0))
+                .andExpect(jsonPath("$.businessDays").value(0));
+    }
+
+    @Test
+    void differenceWithReversedDatesReturns400() throws Exception {
+        postJson("/v1/date/difference", """
+                { "startDate": "2026-11-17", "endDate": "2026-11-07" }
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("startDate must be on or before endDate"));
+    }
+
+    @Test
+    void differenceRangeOverTheLimitReturns400() throws Exception {
+        // 2000-01-01 to 2300-01-01 is about 109,573 days, over the 100,000-day limit.
+        postJson("/v1/date/difference", """
+                { "startDate": "2000-01-01", "endDate": "2300-01-01" }
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Date range must not exceed 100000 days"));
+    }
 }

@@ -104,6 +104,13 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "The resulting date is outside the supported date range", request);
     }
 
+    /** A date range isn't acceptable, e.g. startDate is after endDate in a difference calculation. */
+    @ExceptionHandler(InvalidDateRangeException.class)
+    public ResponseEntity<ApiError> handleInvalidDateRange(
+            InvalidDateRangeException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     /**
      * Catch-all for every exception not handled by a more specific method above.
      * (Spring always picks the most specific matching @ExceptionHandler, so this never
