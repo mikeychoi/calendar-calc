@@ -38,6 +38,7 @@ H2 Database — lightweight, file-based database.
 Maven — dependency management and build tool.
 JUnit 5 — unit testing.
 Mockito — mocking dependencies in unit tests where appropriate.
+springdoc-openapi (3.x, for Spring Boot 4) — generates OpenAPI docs from the controllers at runtime. Swagger UI at /swagger-ui.html, raw spec at /v3/api-docs. Code annotations are the source of truth; no hand-maintained spec file.
 Use Java's built-in java.time API, particularly LocalDate and DayOfWeek, for date operations.
 Avoid legacy date APIs such as java.util.Date and Calendar unless absolutely necessary.
 Project setup (confirmed)
