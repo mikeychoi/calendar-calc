@@ -81,6 +81,27 @@ class HolidayRepositoryTest {
     }
 
     @Test
+    void existsByDateAndNormalizedNameMatchesOnlySameDateAndName() {
+        repository.saveAndFlush(new Holiday(LocalDate.of(2027, 12, 25), "Christmas"));
+
+        assertThat(repository.existsByDateAndNormalizedName(LocalDate.of(2027, 12, 25), "christmas")).isTrue();
+        assertThat(repository.existsByDateAndNormalizedName(LocalDate.of(2027, 12, 24), "christmas")).isFalse();
+        assertThat(repository.existsByDateAndNormalizedName(LocalDate.of(2027, 12, 25), "boxing day")).isFalse();
+    }
+
+    @Test
+    void existsByDateAndNormalizedNameAndIdNotIgnoresTheHolidayBeingUpdated() {
+        LocalDate date = LocalDate.of(2027, 12, 25);
+        Holiday christmas = repository.saveAndFlush(new Holiday(date, "Christmas"));
+        Holiday shutdown = repository.saveAndFlush(new Holiday(date, "Company Shutdown"));
+
+        // Christmas compared with itself: not a duplicate (e.g. renaming it to "CHRISTMAS" is fine).
+        assertThat(repository.existsByDateAndNormalizedNameAndIdNot(date, "christmas", christmas.getId())).isFalse();
+        // Renaming Company Shutdown to "Christmas" would clash with the other record.
+        assertThat(repository.existsByDateAndNormalizedNameAndIdNot(date, "christmas", shutdown.getId())).isTrue();
+    }
+
+    @Test
     void sameDateAndNameIgnoringCaseAndSpacesIsRejectedByDatabase() {
         LocalDate date = LocalDate.of(2027, 12, 25);
         repository.saveAndFlush(new Holiday(date, "Christmas"));

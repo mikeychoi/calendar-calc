@@ -20,4 +20,10 @@ public interface HolidayRepository extends JpaRepository<Holiday, Long> {
 
     /** Holidays with start <= date <= end (inclusive), earliest first. */
     List<Holiday> findByDateBetweenOrderByDateAsc(LocalDate start, LocalDate end);
+
+    /** Is there already a holiday with this date and normalized name? (used when creating) */
+    boolean existsByDateAndNormalizedName(LocalDate date, String normalizedName);
+
+    /** Same check, but ignoring the holiday with the given id (used when updating that holiday). */
+    boolean existsByDateAndNormalizedNameAndIdNot(LocalDate date, String normalizedName, Long id);
 }

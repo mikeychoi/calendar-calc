@@ -53,7 +53,9 @@ Exact duplicate holidays (same date AND same name) are rejected with 409 Conflic
 Name comparison for duplicates ignores capitalization and leading/trailing spaces ("Christmas" == "  CHRISTMAS "). Names are stored trimmed with original capitalization.
 Duplicates are enforced twice: a service-level check (clean 409 message) and a database unique constraint on (holiday_date, normalized_name) as a backstop. normalized_name is internal and never exposed in the API.
 numDays must be between 0 and 100000 inclusive (@Min(0), @Max(100000)). Results outside LocalDate's supported range return 400, not 500.
-PATCH: a missing or null field means "do not change". A blank name ("") is rejected with 400.
+PATCH: a missing or null field means "do not change". A blank name ("") is rejected with 400. An empty body ({}) returns the holiday unchanged (200).
+Holiday names are limited to 255 characters (@Size(max = 255), matching the column length).
+PATCH duplicate check excludes the holiday being updated, so changing only the capitalization of its own name is allowed.
 Tests use an in-memory H2 database (src/test/resources) so they never touch ./data/.
 The developer handles all git commits. Claude should not commit.
 4. Architecture and Code Organization
