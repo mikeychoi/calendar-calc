@@ -47,7 +47,7 @@ Base package: com.mikeychoi.calendarcalc. Main class: CalendarCalcApplication.
 Spring Boot 4 uses modular starters (e.g. spring-boot-starter-webmvc, spring-boot-h2console, *-test starters).
 Confirmed decisions
 The holiday calendar is not restricted to 2027. Holidays may be added for any year; ?year= is only a filter.
-GET /v1/holidays without a year parameter returns all holidays.
+GET /v1/holidays without a year parameter returns all holidays. year must be an integer from 1 to 9999 (@Min/@Max); otherwise 400.
 Exact duplicate holidays (same date AND same name) are rejected with 409 Conflict. Different holidays on the same date are allowed.
 Name comparison for duplicates ignores capitalization and leading/trailing spaces ("Christmas" == "  CHRISTMAS "). Names are stored trimmed with original capitalization.
 Duplicates are enforced twice: a service-level check (clean 409 message) and a database unique constraint on (holiday_date, normalized_name) as a backstop. normalized_name is internal and never exposed in the API.
