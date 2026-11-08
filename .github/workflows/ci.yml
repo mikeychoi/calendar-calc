@@ -1,0 +1,29 @@
+name: CI
+
+# Run the test suite on every push and pr
+on:
+  push:
+  pull_request:
+
+# Read-only access to the repository is all this workflow needs.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin   # same JDK vendor as local development
+          java-version: '21'
+          cache: maven            # reuse downloaded dependencies between runs
+
+      - name: Run tests
+        run: ./mvnw -B test       # -B = batch mode: no interactive prompts or progress bars
