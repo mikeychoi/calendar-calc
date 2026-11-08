@@ -2,6 +2,7 @@ package com.mikeychoi.calendarcalc.service;
 
 import com.mikeychoi.calendarcalc.dto.HolidayResponse;
 import com.mikeychoi.calendarcalc.entity.Holiday;
+import com.mikeychoi.calendarcalc.exception.ResourceNotFoundException;
 import com.mikeychoi.calendarcalc.repository.HolidayRepository;
 import org.springframework.stereotype.Service;
 
@@ -41,5 +42,16 @@ public class HolidayService {
         return holidays.stream()
                 .map(HolidayResponse::from)
                 .toList();
+    }
+
+    /**
+     * Returns one holiday by id.
+     *
+     * @throws ResourceNotFoundException if no holiday has that id
+     */
+    public HolidayResponse getHoliday(Long id) {
+        return holidayRepository.findById(id)
+                .map(HolidayResponse::from)
+                .orElseThrow(() -> new ResourceNotFoundException("Holiday with id " + id + " not found"));
     }
 }

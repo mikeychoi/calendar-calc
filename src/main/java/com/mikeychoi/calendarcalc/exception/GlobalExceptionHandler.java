@@ -15,8 +15,8 @@ import java.util.stream.Collectors;
 /**
  * Converts exceptions thrown anywhere in a controller call into the standard ApiError JSON.
  *
- * Minimal for now: only the cases the GET /v1/holidays endpoint can produce.
- * More handlers (invalid JSON body, not found, duplicates, unexpected errors) come later.
+ * Minimal for now: only the cases the GET endpoints can produce.
+ * More handlers (invalid JSON body, duplicates, unexpected errors) come later.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -40,6 +40,13 @@ public class GlobalExceptionHandler {
                                 + " " + error.getDefaultMessage()))
                 .collect(Collectors.joining("; "));
         return build(HttpStatus.BAD_REQUEST, message, request);
+    }
+
+    /** The service couldn't find the requested record, e.g. GET /v1/holidays/999. */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiError> handleNotFound(
+            ResourceNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message, HttpServletRequest request) {

@@ -1,6 +1,7 @@
 package com.mikeychoi.calendarcalc.controller;
 
 import com.mikeychoi.calendarcalc.dto.HolidayResponse;
+import com.mikeychoi.calendarcalc.exception.ResourceNotFoundException;
 import com.mikeychoi.calendarcalc.service.HolidayService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -89,6 +90,40 @@ class HolidayControllerTest {
                 .andExpect(jsonPath("$.message").value("year must be greater than or equal to 1"));
 
         verify(holidayService, never()).getHolidays(any());
+    }
+
+    @Test
+    void getByIdReturnsHoliday() throws Exception {
+        when(holidayService.getHoliday(1L))
+                .thenReturn(new HolidayResponse(1L, LocalDate.of(2027, 12, 25), "Christmas"));
+
+        mockMvc.perform(get("/v1/holidays/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.date").value("2027-12-25"))
+                .andExpect(jsonPath("$.name").value("Christmas"));
+    }
+
+    @Test
+    void getByUnknownIdReturns404WithStandardErrorBody() throws Exception {
+        when(holidayService.getHoliday(99L))
+                .thenThrow(new ResourceNotFoundException("Holiday with id 99 not found"));
+
+        mockMvc.perform(get("/v1/holidays/99"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Holiday with id 99 not found"))
+                .andExpect(jsonPath("$.path").value("/v1/holidays/99"));
+    }
+
+    @Test
+    void getByNonNumericIdReturns400() throws Exception {
+        mockMvc.perform(get("/v1/holidays/abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("id must be a valid integer"));
+
+        verify(holidayService, never()).getHoliday(any());
     }
 
     @Test

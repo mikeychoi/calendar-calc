@@ -5,6 +5,7 @@ import com.mikeychoi.calendarcalc.service.HolidayService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,5 +36,15 @@ public class HolidayController {
     public List<HolidayResponse> getHolidays(
             @RequestParam(required = false) @Min(1) @Max(9999) Integer year) {
         return holidayService.getHolidays(year);
+    }
+
+    /**
+     * GET /v1/holidays/{id}  -> one holiday
+     *
+     * 200 OK with the holiday, 404 if the id doesn't exist, 400 if id isn't a number.
+     */
+    @GetMapping("/{id}")
+    public HolidayResponse getHoliday(@PathVariable Long id) {
+        return holidayService.getHoliday(id);
     }
 }
