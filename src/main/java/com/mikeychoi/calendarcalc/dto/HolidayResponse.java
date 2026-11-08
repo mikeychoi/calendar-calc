@@ -1,5 +1,7 @@
 package com.mikeychoi.calendarcalc.dto;
 
+import com.mikeychoi.calendarcalc.entity.Holiday;
+
 import java.time.LocalDate;
 
 /**
@@ -10,4 +12,9 @@ import java.time.LocalDate;
  *
  */
 public record HolidayResponse(Long id, LocalDate date, String name) {
+
+    /** Copies only the public fields from the entity (normalizedName stays internal). */
+    public static HolidayResponse from(Holiday holiday) {
+        return new HolidayResponse(holiday.getId(), holiday.getDate(), holiday.getName());
+    }
 }

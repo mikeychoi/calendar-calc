@@ -49,6 +49,8 @@ Confirmed decisions
 The holiday calendar is not restricted to 2027. Holidays may be added for any year; ?year= is only a filter.
 GET /v1/holidays without a year parameter returns all holidays.
 Exact duplicate holidays (same date AND same name) are rejected with 409 Conflict. Different holidays on the same date are allowed.
+Name comparison for duplicates ignores capitalization and leading/trailing spaces ("Christmas" == "  CHRISTMAS "). Names are stored trimmed with original capitalization.
+Duplicates are enforced twice: a service-level check (clean 409 message) and a database unique constraint on (holiday_date, normalized_name) as a backstop. normalized_name is internal and never exposed in the API.
 numDays must be between 0 and 100000 inclusive (@Min(0), @Max(100000)). Results outside LocalDate's supported range return 400, not 500.
 PATCH: a missing or null field means "do not change". A blank name ("") is rejected with 400.
 Tests use an in-memory H2 database (src/test/resources) so they never touch ./data/.
