@@ -56,6 +56,10 @@ numDays must be between 0 and 100000 inclusive (@Min(0), @Max(100000)). Results 
 PATCH: a missing or null field means "do not change". A blank name ("") is rejected with 400. An empty body ({}) returns the holiday unchanged (200).
 Holiday names are limited to 255 characters (@Size(max = 255), matching the column length).
 PATCH duplicate check excludes the holiday being updated, so changing only the capitalization of its own name is allowed.
+Add/subtract DTOs are named DateAddSubtractRequest / DateAddSubtractResponse (shared by both endpoints). DateCalculationService/Controller keep the broader name because they also handle difference.
+Difference: startDate after endDate is rejected by the service (InvalidDateRangeException -> 400), not by a DTO annotation.
+Difference ranges are limited to 100000 days (same as the numDays limit) so the day-by-day business count stays fast.
+Business-day add/subtract loads all holiday dates into a Set<LocalDate> (the table is small); difference loads only holidays inside (startDate, endDate].
 Tests use an in-memory H2 database (src/test/resources) so they never touch ./data/.
 The developer handles all git commits. Claude should not commit.
 4. Architecture and Code Organization
@@ -106,8 +110,8 @@ calendar-calc
 │   └── Holiday.java
 │
 ├── dto/
-│   ├── AddDateRequest.java
-│   ├── DateCalculationResponse.java
+│   ├── DateAddSubtractRequest.java
+│   ├── DateAddSubtractResponse.java
 │   ├── DateDifferenceRequest.java
 │   ├── DateDifferenceResponse.java
 │   ├── HolidayRequest.java
